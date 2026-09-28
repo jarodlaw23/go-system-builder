@@ -948,6 +948,13 @@ func qualifiedEvidence(
 	var valid []string
 	var conflicts []string
 	var mismatched []string
+	// Deferred like unauthorized producers below: evidence rows cannot be
+	// retired outside a transition commit, and the documented recovery for a
+	// mis-registered envelope is "register new qualified evidence" — which
+	// leaves the superseded row pointing at a shared path. An unconditional
+	// schema conflict would then make the gate permanently unsatisfiable;
+	// the deferred conflicts surface only when no record ends up qualifying.
+	var deferredSchema []string
 	for _, item := range raw {
 		index, _ := item.(map[string]any)
 		if index == nil || !evidenceKindsEqual(requirement.Kind, stringValue(index["kind"])) {
@@ -976,7 +983,7 @@ func qualifiedEvidence(
 		}
 		var envelope evidenceEnvelope
 		if err := json.Unmarshal(data, &envelope); err != nil {
-			conflicts = append(conflicts, "evidence:"+stringValue(index["id"])+":schema")
+			deferredSchema = append(deferredSchema, "evidence:"+stringValue(index["id"])+":schema")
 			continue
 		}
 		if envelope.SchemaVersion == "" ||
@@ -987,7 +994,7 @@ func qualifiedEvidence(
 			envelope.ProducerAgentID == "" ||
 			envelope.ProducerResponsibility != stringValue(index["responsibility_id"]) ||
 			!containsAny(index["produced_by"], envelope.ProducerAgentID) {
-			conflicts = append(conflicts, "evidence:"+stringValue(index["id"])+":schema")
+			deferredSchema = append(deferredSchema, "evidence:"+stringValue(index["id"])+":schema")
 			continue
 		}
 		if requirement.CurrentReviewRound &&
@@ -1027,6 +1034,11 @@ func qualifiedEvidence(
 	if len(valid) == 0 && len(mismatched) > 0 {
 		// Nothing qualified and naming errors exist — they are the reason.
 		conflicts = append(conflicts, mismatched...)
+	}
+	if len(valid) < requirement.MinCount && len(deferredSchema) > 0 {
+		// Nothing (or not enough) qualified and superseded registrations
+		// exist — their schema drift is then the blocking reason.
+		conflicts = append(conflicts, deferredSchema...)
 	}
 	return sortedUnique(valid), sortedUnique(conflicts)
 }
