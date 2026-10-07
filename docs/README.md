@@ -17,3 +17,5 @@
 [执行控制](control/README.md)定义合法流程，[规则](rules/README.md)定义稳定约束，[示例](examples/README.md)提供可运行参考。实例的当前事实只由 `.claude/loop-state.json` 表达。
 
 根目录 `blueprint/` 是本模板的设计与维护文档，不属于目标项目文档，不随模板安装。安装包带有适合目标项目的独立导航；规范、模板、示例和历史报告不得相互替代。
+
+维护框架源码或整理仓库时，参见[目录与发布边界](../packaging/README.md)。本仓库的 `reports/` 保留可复用报告模板；带日期的框架修复报告、验证日志和源码备份归入被 Git 忽略的 `.local/framework-maintenance/`，不混入目标项目文档。
