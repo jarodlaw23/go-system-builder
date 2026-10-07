@@ -327,13 +327,20 @@ func guardCleanRoundValidFn(state map[string]any, _ map[string]string) error {
 // the engine's validateCurrentEvidence apply (status=valid, current baseline
 // generation, current review round, fingerprint match), so the guard cannot
 // be satisfied by a re-used or re-hashed envelope.
-func guardACCCurrentFn(state map[string]any, _ map[string]string) error {
+func guardACCCurrentFn(state map[string]any, refs map[string]string) error {
 	root, _ := state["root"].(string)
 	if root == "" {
 		root = "."
 	}
-	if err := acceptance.ValidateCurrentS10Evidence(root, state, "acceptance"); err != nil {
+	if refs["acceptance_record"] == "" {
+		return fmt.Errorf("acc_complete: exact acceptance_record evidence ID is required")
+	}
+	candidate, err := acceptance.ValidateS10Candidate(acceptance.CandidateInput{State: state, Files: guardFiles(state, root), Kind: "acceptance", EvidenceID: refs["acceptance_record"]})
+	if err != nil {
 		return fmt.Errorf("acc_complete: %w", err)
+	}
+	if candidate.Envelope.Conclusion != "pass" {
+		return fmt.Errorf("acc_complete: current acceptance conclusion is %q", candidate.Envelope.Conclusion)
 	}
 	return nil
 }
@@ -342,13 +349,20 @@ func guardACCCurrentFn(state map[string]any, _ map[string]string) error {
 // release_audit_approved guard (RC-06, S10-14 — same stub lineage as
 // acc_complete). It requires a CURRENT release_audit evidence entry whose
 // registered fingerprint still matches the on-disk audit record.
-func guardReleaseAuditCurrentFn(state map[string]any, _ map[string]string) error {
+func guardReleaseAuditCurrentFn(state map[string]any, refs map[string]string) error {
 	root, _ := state["root"].(string)
 	if root == "" {
 		root = "."
 	}
-	if err := acceptance.ValidateCurrentS10Evidence(root, state, "release_audit"); err != nil {
+	if refs["release_audit_record"] == "" {
+		return fmt.Errorf("release_audit_approved: exact release_audit_record evidence ID is required")
+	}
+	candidate, err := acceptance.ValidateS10Candidate(acceptance.CandidateInput{State: state, Files: guardFiles(state, root), Kind: "release_audit", EvidenceID: refs["release_audit_record"]})
+	if err != nil {
 		return fmt.Errorf("release_audit_approved: %w", err)
+	}
+	if candidate.Envelope.Conclusion != "approved" && candidate.Envelope.Conclusion != "approved_with_risk" {
+		return fmt.Errorf("release_audit_approved: current audit conclusion is %q", candidate.Envelope.Conclusion)
 	}
 	return nil
 }

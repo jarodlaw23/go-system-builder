@@ -120,12 +120,11 @@ func Register(root, statePath, journalPath string, request Request) (loopruntime
 	responsibilityIDs := assignedResponsibilities(value)
 
 	store := loopruntime.NewWriter(statePath, journalPath, root, semantic.RuntimeCandidateValidator{})
-	// Activation envelopes are staged while the mutation builds its candidate
-	// state. Keep their exact bytes' digests so a rejected Apply can remove only
-	// the files created by this attempt. Store.Update already protects the
-	// cleanup with the same revision/pending-marker checks used by every other
-	// staged artifact; if the commit may still be recoverable, the file is
-	// intentionally retained.
+	// Legacy activation drafts are written while Apply builds its candidate.
+	// They are mutable inputs to the later activation chain, not immutable S7
+	// evidence. Generic failure cleanup now retains published paths: an old
+	// caller reference list cannot prove they are unreachable from history.
+	// Authorization still requires a committed agent/activation_ref projection.
 	stagedActivations := make([]loopruntime.ArtifactCleanupRequest, 0, len(value.Assignments))
 	snapshot, updateErr := updateRuntime(store, request.ExpectedRevision, loopruntime.Mutation{
 		EventID:        fmt.Sprintf("evt-register-%s-r%d", value.WorkgroupID, commitRevision+1),

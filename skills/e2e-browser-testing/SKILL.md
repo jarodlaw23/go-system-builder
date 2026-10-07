@@ -279,6 +279,12 @@ the regression sweep mandated by `docs/rules/ui-prototype.md §8`.
 
 ### Sweep mechanics
 
+Keep module-qualified CASE identity throughout discovery and reporting. A
+source scan does not establish `regression_available`: it supplies candidate
+locations only, including potentially unrelated or comment-only files. Never
+manufacture selector/environment metadata to qualify a scan hit. Verify actual
+runner collection and retain execution evidence separately from file hashes.
+
 1. Enumerate browser-required CASE IDs, branch mappings, and their separate
    `F-NNN` and `PATH-*` refs from `docs/design/prototypes/<module>/cases.json`.
 2. Use each separate `F-NNN` ref to validate structural membership against

@@ -48,8 +48,8 @@ func RevivePlan(
 		cursor = map[string]any{"state": lifecycle["state"], "phase": lifecycle["phase"]}
 	}
 	runtimeID, _ := current.State["runtime_id"].(string)
-	commitRevision := currentCommitRevision(-1, current.State)
-	snapshot, err := updateRuntime(store, expectedRevision, loopruntime.Mutation{
+	commitRevision := currentCommitRevision(expectedRevision, current.State)
+	snapshot, err := updateRuntime(store, commitRevision, loopruntime.Mutation{
 		EventID:        fmt.Sprintf("evt-review-plan-revive-%s-r%d", ptr.PlanID, commitRevision+1),
 		TransitionID:   "REVIEW-PLAN-REVIVE",
 		Event:          "review_plan_revived",

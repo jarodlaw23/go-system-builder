@@ -15,6 +15,7 @@ import (
 // ReviseRequest drives `runtime review-plan revise` — the one controlled
 // ReviewPlan revision per round (L3-S7 §3.2, §5.3).
 type ReviseRequest struct {
+	OperationID      string
 	ExpectedRevision int
 	PlanPath         string
 	SourceRef        string
@@ -62,6 +63,14 @@ func RevisePlan(
 	var current map[string]any
 	if err := json.Unmarshal(stateData, &current); err != nil {
 		return loopruntime.Snapshot{}, fmt.Errorf("decode runtime: %w", err)
+	}
+	operation, prior, replayed, err := prepareReviewOperation(root, statePath, journalPath, request.OperationID, "REVIEW-PLAN-REVISE", current, map[string]any{"plan": next, "source_ref": request.SourceRef, "affected_surface": request.AffectedSurface, "occurred_at": request.OccurredAt})
+	if err != nil || replayed {
+		return prior, err
+	}
+
+	if err := ValidateProtocolBinding(current, next.SchemaVersion); err != nil {
+		return loopruntime.Snapshot{}, err
 	}
 	if request.ExpectedRevision >= 0 && intField(current["revision"]) != request.ExpectedRevision {
 		return loopruntime.Snapshot{}, loopruntime.ErrStaleRevision
@@ -133,9 +142,6 @@ func RevisePlan(
 		nextRevision = 2
 	}
 	planRel := filepath.ToSlash(filepath.Join(".claude", "review", "plans", fmt.Sprintf("%s-r%d.json", next.ReviewPlanID, nextRevision)))
-	if err := writeArtifact(root, planRel, planBytes); err != nil {
-		return loopruntime.Snapshot{}, err
-	}
 	planSHA := sha256Of(planBytes)
 	runtimeID, _ := current["runtime_id"].(string)
 	occurredAt := request.OccurredAt
@@ -150,7 +156,9 @@ func RevisePlan(
 	}
 
 	store := loopruntime.NewWriter(statePath, journalPath, root, semantic.RuntimeCandidateValidator{})
-	snapshot, err := updateRuntime(store, request.ExpectedRevision, loopruntime.Mutation{
+	snapshot, err := updateRuntime(store, commitRevision, loopruntime.Mutation{
+		Operation:      operation,
+		Artifacts:      []loopruntime.ImmutableArtifact{{Path: planRel, Data: planBytes}},
 		EventID:        fmt.Sprintf("evt-review-revise-%s-r%d", next.ReviewPlanID, commitRevision+1),
 		TransitionID:   "REVIEW-PLAN-REVISE",
 		Event:          "review_plan_revised",
@@ -163,6 +171,15 @@ func RevisePlan(
 			next.ReviewPlanID, len(changed), request.SourceRef),
 		OccurredAt: occurredAt,
 		Apply: func(state map[string]any) error {
+			if err := ValidatePlanArtifactForRegistration(root, &next, state); err != nil {
+				return err
+			}
+			if err := validateRevisionSource(root, state, request.SourceRef, currentPlan.ReviewRound, currentPlan.BaselineGeneration); err != nil {
+				return err
+			}
+			if _, _, err := LoadPlan(root, state); err != nil {
+				return err
+			}
 			reviewMap, ok := state["review"].(map[string]any)
 			if !ok {
 				return fmt.Errorf("runtime review section must be an object")
@@ -315,19 +332,6 @@ func RevisePlan(
 		},
 	})
 	if err != nil {
-		// Update may have left a durable pending commit after writing its
-		// marker. Cleanup must be serialized with Runtime writers and must
-		// retain the artifact whenever recovery could still publish a pointer
-		// to it.
-		cleanupStore := loopruntime.NewWriter(statePath, journalPath, root, semantic.RuntimeCandidateValidator{})
-		if _, cleanupErr := cleanupStore.RemoveUnreferencedArtifact(loopruntime.ArtifactCleanupRequest{
-			ExpectedRevision: commitRevision,
-			ArtifactPath:     planRel,
-			ArtifactSHA256:   planSHA,
-			ReferencedPaths:  []string{ptr.Path},
-		}); cleanupErr != nil {
-			return snapshot, fmt.Errorf("revise failed and staged plan cleanup was inconclusive: %w (original: %v)", cleanupErr, err)
-		}
 		return snapshot, err
 	}
 	return snapshot, nil

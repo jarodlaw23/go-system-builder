@@ -237,7 +237,12 @@ func deletionCorroborated(root string, state map[string]any, plan *Plan, subject
 		var impact struct {
 			RuntimeID          string `json:"runtime_id"`
 			BaselineGeneration int    `json:"baseline_generation"`
-			ChangedArtifacts   []struct {
+			VerifiedSubjects   []struct {
+				Path   string `json:"path"`
+				SHA256 string `json:"sha256"`
+				Status string `json:"status"`
+			} `json:"verified_subjects"`
+			ChangedArtifacts []struct {
 				Path   string `json:"path"`
 				SHA256 string `json:"sha256"`
 				Status string `json:"status"`
@@ -246,7 +251,7 @@ func deletionCorroborated(root string, state map[string]any, plan *Plan, subject
 		if json.Unmarshal(data, &impact) != nil || impact.RuntimeID != stringField(state["runtime_id"]) || impact.BaselineGeneration != generation {
 			return false
 		}
-		for _, artifact := range impact.ChangedArtifacts {
+		for _, artifact := range append(impact.ChangedArtifacts, impact.VerifiedSubjects...) {
 			if artifact.Path == subjectPath {
 				return selected[id] && artifact.SHA256 == subjectSHA && artifact.Status == "deleted"
 			}
@@ -349,7 +354,16 @@ func isControlPlaneDriftPath(rel string) bool {
 	if strings.HasPrefix(rel, ".claude/") && (strings.HasSuffix(rel, ".lock") || strings.HasSuffix(rel, ".lock.process")) {
 		return true
 	}
-	for _, prefix := range []string{".claude/review/", ".claude/evidence/", ".claude/workgroups/", ".claude/plans/", ".claude/bin/"} {
+	// CAS atomic-write temps (.claude/.loop-state-<rand>.tmp, .loop-journal-*.tmp,
+	// .loop-recovery-*.tmp) are the harness's own transient write buffers. A
+	// crashed or raced rename can leak one; scanning it mid-window has staled
+	// otherwise clean rounds twice (REQ-056 S7 r1, 2026-09-28/29) and the leak
+	// is invisible to reviewer write surfaces, so cleanup needs the human `!`
+	// channel. Whitelist the whole transient family.
+	if strings.HasPrefix(rel, ".claude/.loop-") && strings.HasSuffix(rel, ".tmp") {
+		return true
+	}
+	for _, prefix := range []string{".claude/review/", ".claude/evidence/", ".claude/operations/", ".claude/workgroups/", ".claude/plans/", ".claude/bin/"} {
 		if rel == strings.TrimSuffix(prefix, "/") || strings.HasPrefix(rel, prefix) {
 			return true
 		}

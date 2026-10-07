@@ -1,6 +1,7 @@
 package transition
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
@@ -13,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/entroforge/go-system-builder/internal/acceptance"
 	"github.com/entroforge/go-system-builder/internal/evidence"
 	"github.com/entroforge/go-system-builder/internal/impact"
 	"github.com/entroforge/go-system-builder/internal/repairpolicy"
@@ -75,6 +77,14 @@ type resolvedTransition struct {
 }
 
 func Apply(root, statePath, journalPath string, request Request) (loopruntime.Snapshot, error) {
+	return ApplyContext(context.Background(), root, statePath, journalPath, request)
+}
+
+// ApplyContext shares the caller deadline through snapshot, validation and CAS.
+func ApplyContext(ctx context.Context, root, statePath, journalPath string, request Request) (loopruntime.Snapshot, error) {
+	if err := ctx.Err(); err != nil {
+		return loopruntime.Snapshot{}, err
+	}
 	occurredAt := request.OccurredAt
 	if occurredAt.IsZero() {
 		occurredAt = time.Now().UTC()
@@ -86,6 +96,7 @@ func Apply(root, statePath, journalPath string, request Request) (loopruntime.Sn
 	if request.RecoveryWriter.Enabled() {
 		store = loopruntime.NewOfflineRecoveryWriter(statePath, journalPath, root, semantic.RuntimeCandidateValidator{}, request.RecoveryWriter)
 	}
+	store = store.WithContext(ctx)
 	snapshot, err := store.Snapshot()
 	if err != nil {
 		return loopruntime.Snapshot{}, fmt.Errorf("read runtime: %w", err)
@@ -116,7 +127,7 @@ func Apply(root, statePath, journalPath string, request Request) (loopruntime.Sn
 			if err := fileview.ValidateAuthority(root, current); err != nil {
 				return loopruntime.Snapshot{}, err
 			}
-			view, err := fileview.New(root, "refs/heads/"+strings.TrimPrefix(ref, "refs/heads/"), catalog.Definition.FileSources)
+			view, err := fileview.NewContext(ctx, root, "refs/heads/"+strings.TrimPrefix(ref, "refs/heads/"), catalog.Definition.FileSources)
 			if err != nil {
 				return loopruntime.Snapshot{}, err
 			}
@@ -535,6 +546,39 @@ func validateRequest(root string, state map[string]any, spec TransitionSpec, req
 			if err := validateCurrentEvidenceWithFiles(root, state, kind, ref, request.Files); err != nil {
 				return fmt.Errorf("transition %s evidence %s: %w", spec.ID, kind, err)
 			}
+			if _, err := acceptance.Contract(kind); err == nil {
+				files := request.Files
+				if files == nil {
+					view, err := fileview.ForState(root, state)
+					if err != nil {
+						return err
+					}
+					files = view
+				}
+				candidate, err := acceptance.ValidateS10Candidate(acceptance.CandidateInput{State: state, Files: files, Kind: kind, EvidenceID: ref, AffectedPaths: request.AffectedPaths})
+				if err != nil {
+					return fmt.Errorf("transition %s evidence %s: %w", spec.ID, kind, err)
+				}
+				conclusion := candidate.Envelope.Conclusion
+				compatible := true
+				switch spec.Event {
+				case "acceptance_completed":
+					compatible = conclusion == "pass"
+				case "acceptance_review_required":
+					compatible = conclusion == "review_required"
+				case "release_audit_blocked":
+					compatible = conclusion == "blocked"
+				case "release_audit_approved":
+					if kind == "acceptance_record" {
+						compatible = conclusion == "pass"
+					} else {
+						compatible = conclusion == "approved" || conclusion == "approved_with_risk"
+					}
+				}
+				if !compatible {
+					return fmt.Errorf("transition %s cannot consume %s conclusion %q", spec.ID, ref, conclusion)
+				}
+			}
 		}
 	}
 	if spec.ID == "TR-001" && request.REQ == nil {
@@ -707,7 +751,20 @@ func validateHumanDecisionArtifact(root string, state map[string]any, spec Trans
 	if err := json.Unmarshal(data, &artifact); err != nil {
 		return fmt.Errorf("decode human_decision artifact %q: %w", stringValue(item["id"]), err)
 	}
+	return validateHumanDecisionFields(state, spec, item, artifact)
+}
+
+func validateHumanDecisionFields(state map[string]any, spec TransitionSpec, item, artifact map[string]any) error {
+	if err := validateDecisionDraftFields(state, artifact); err != nil {
+		return err
+	}
 	runtimeID := stringValue(state["runtime_id"])
+	if refs, present := artifact["scope_refs"]; present {
+		want := spec.HumanDecisionScope + ":" + runtimeID
+		if !containsString(toStringSlice(refs), want) {
+			return fmt.Errorf("human_decision artifact scope_refs must include %q", want)
+		}
+	}
 	if value, ok := artifact["runtime_id"]; !ok || stringValue(value) == "" {
 		return fmt.Errorf("human_decision artifact %q must declare runtime_id", stringValue(item["id"]))
 	} else if stringValue(value) != runtimeID {
@@ -829,6 +886,11 @@ func dispatchAction(name string, results []map[string]any, state map[string]any,
 // targeted re-verification evidence. A BUG still in retesting, fixing, or
 // investigation means targeted re-verification is not complete yet.
 func guardAllTargetedReverificationPassed(state map[string]any) error {
+	if review, ok := state["review"].(map[string]any); ok {
+		if repair, ok := review["repair"].(map[string]any); ok && repair["session_id"] != nil {
+			return fmt.Errorf("approved-contract S9 requires runtime repair handoff commit; generic TR-012 cannot bypass the Result, stop condition and handoff checks")
+		}
+	}
 	entities, ok := state["entities"].(map[string]any)
 	if !ok {
 		return nil
