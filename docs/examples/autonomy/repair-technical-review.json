@@ -1,9 +1,0 @@
-{
-  "decision": "",
-  "requirements_unchanged": false,
-  "business_semantics_unchanged": false,
-  "reversible": false,
-  "scope_complete": false,
-  "evidence_refs": [],
-  "rationale": "审查实际生产入口、事务、完整范围、兼容性和可逆性后填写；不能只把四项判断翻成 true。"
-}

@@ -1,4 +1,0 @@
-interface:
-  display_name: "User Story Design"
-  short_description: "Design result-led stories for UI decisions"
-  default_prompt: "Use $user-story-design to create result-led user stories for this UI module."

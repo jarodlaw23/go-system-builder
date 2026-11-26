@@ -1,16 +1,33 @@
-# Local Claude / agent runtime state (workspace-local; never commit)
-.claude/
+# Local Claude configuration and runtime. Track only the four project entrypoints.
+/.claude/*
+!/.claude/skills/
+/.claude/skills/*
+!/.claude/skills/project-dev/
+!/.claude/skills/project-fix/
+!/.claude/skills/project-test/
+!/.claude/skills/project-review/
+/.claude/skills/project-*/*
+!/.claude/skills/project-dev/SKILL.md
+!/.claude/skills/project-fix/SKILL.md
+!/.claude/skills/project-test/SKILL.md
+!/.claude/skills/project-review/SKILL.md
+/.codex/
+/.aws/
+/CLAUDE.local.md
+/AGENTS.override.md
 
-# Project-instance files (local to each target project; never commit back)
-AGENTS.md
+# Local overlays, former framework runtime and build outputs.
+/.local/
+/.loop-submissions/
+/.loop-runtime/
 /docs/project-map.md
 /docs/requirements/REQ-[0-9]*.md
-
-# Go build and test artifacts
 /bin/
 /build/
 /dist/
 /loop-harness
+/loop-harness.exe
+*.lock.process
 *.test
 *.coverprofile
 coverage.out
@@ -18,34 +35,21 @@ coverage.html
 *.prof
 *.pprof
 
-# Project-local temporary files
+# Secrets, temporary outputs and editor files.
+.env
+.env.*
+!.env.example
+*.log
+*.tmp
+/output/
 /tmp/
 /temp/
-*.tmp
-*.lock.process
-
-# IDE and editor files
 .idea/
 .vscode/
 *.swp
 *.swo
 *~
-
-# Python tooling artifacts
 __pycache__/
 *.pyc
-
-# Operating-system files
 .DS_Store
 Thumbs.db
-
-# Local configuration and secrets
-.env
-.env.*
-!.env.example
-
-# Logs
-*.log
-
-# Local framework maintenance archives (not reusable template assets)
-/.local/

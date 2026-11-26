@@ -1,52 +1,32 @@
-# Vibe Coding Documentation System
+# 轻量工作流
 
-Reusable documentation scaffolding for AI/Agent-assisted software delivery.
+一套供 Codex 和 Claude Code 共用的项目工作方法。共同规则在 [AGENTS.md](AGENTS.md)，四种方法的正文在 [`.agents/skills`](.agents/skills)，Claude Code 通过 [CLAUDE.md](CLAUDE.md) 和 `.claude/skills` 读取同一份内容。
 
-## Entry Points
+| 工作 | Codex | Claude Code |
+| --- | --- | --- |
+| 开发业务功能 | `$project-dev` | `/project-dev` |
+| 修复已知问题 | `$project-fix` | `/project-fix` |
+| 独立验证或回归 | `$project-test` | `/project-test` |
+| 审查代码或方案 | `$project-review` | `/project-review` |
 
-1. `AGENTS-template.md`: project-local `AGENTS.md` source — Layer 1 entry (Main-session Driver). Step 0 checks Project Design Foundation before the first `UI impact=changed` REQ.
-2. `loop-template.md`: project-local `.claude/loop.md` source — Layer 2 Wake-up Prompt.
-3. `settings.json`: Hook registration — Layer 3 guardrail enforcement.
-4. `docs/control/agent-protocol.md`: authoritative Main Spine (S0-S11 stage contracts).
-5. `docs/README.md`: setup and usage order.
-6. `docs/project-map-template.md`: template for project facts, stage, PM todo, and gates.
-7. `docs/requirements/REQ-template.md`: requirement template.
-8. `docs/rules/design-foundation.md` and `skills/design-foundation/SKILL.md`: F0–F6 before locking UI-changing REQs.
-9. `docs/guides/getting-started.md`: main-session onboarding.
+从项目根目录打开新会话。Codex 在输入框选择对应 Skill，或用 `$` 指定它。Claude Code 用对应的斜杠命令。随后给出本次目标和相关资料，例如 `/project-fix 保存后首次选人不刷新，验收见 Issue #42`。普通问答和小调整可以直接描述任务。
 
-## Documentation and Installation
+### 在项目中采用
 
-Start with the [documentation index](docs/README.md) and [document map](docs/DOCUMENT-MAP.md).
-The [framework index](blueprint/README.md) separates L1 principles, L2 lifecycle,
-L3 stages, and L4 mechanisms.
-Root `blueprint/` documents the template itself; it is separate from target-project
-`docs/` and is excluded from release packages.
+1. 将 `AGENTS.md` 的通用约定合并进项目现有规则，保留项目自己的架构、权限和测试命令。将 `@AGENTS.md` 合并进 Claude 的项目入口。
+2. 将四份 `.agents/skills/project-*`、对应的 `.claude/skills/project-*` 和 `templates/implementation-plan.md` 放入相同的项目相对路径。检查与现有 Skill 的命名冲突和忽略规则。
+3. 从新会话确认入口可见，用一个限范围任务验证它能读取共享方法并运行项目已有检查。使用项目原有的权限、CI 和发布流程。旧项目启用过 Loop 的，先确认必要的安全控制由哪里执行，再安排切换。
 
-Follow the [installation guide](docs/guides/install.md) to install a release into a new empty project.
-Existing projects retain their matching release; this layout does not support overlay upgrades.
+工作流本身由 Markdown 和 Skill 元数据组成。项目测试、浏览器或数据库的运行前提仍由项目决定。
 
-## Repository Boundary
+### 文档和交接
 
-This repository stores reusable templates, rules, and reference material only.
+长期架构留在项目原有 `docs/architecture/`，设计和原型说明放在 `docs/design/`，可运行原型留在原源码目录。当前任务使用同一张 Issue 或一份 [实施计划](templates/implementation-plan.md)。交付记录包含版本、测试命令、环境、真实结果、遗漏和下一步。大产物放在项目已有的输出位置或 CI artifacts，交接时给接手者可读的入口。验证 JSON 由现有 runner 按需生成，接口和配置 JSON 跟随各自的消费者。
 
-See [packaging/README.md](packaging/README.md) for source and release boundaries,
-[docs/guides/install.md](docs/guides/install.md) for installation, and
-[docs/workspace-integration.md](docs/workspace-integration.md) for Main/Worker behavior.
+更换工具时，给接手者同一任务链接与完整提交。未提交的变更需要可取得的工作区或补丁。按改动风险选择验证和分工。
 
-Project-instance files such as `AGENTS.md`, `docs/project-map.md`, `docs/requirements/REQ-*.md`, requirement indexes, and reports are local to each target project and must not be committed back to this template repository.
+### 旧版和实施记录
 
-## Core Gates
+旧框架保留在 `upstream-v0.3.2-workflow` 的 `0bea691fade6bd7dfccbb543dd26dfb14f57d854`。维护旧项目时，使用对应版本的二进制、配置和运行记录。新版范围、取舍与实施记录见[轻量化实施方案](docs/plans/lightweight-framework-plan.md)。
 
-- No bound REQ, no requirement work (the machine-enforced gate; the PM todo block was removed from the REQ template).
-- No stage check, no next stage.
-- No locked requirement, no design lock, contract lock, task split, Builder dispatch, or feature branch.
-- No UI Design Package Gate, no FE/BE/SYNC contract lock for UI-impacting requirements.
-- No `loop-harness req bind` on a human-locked REQ, no Engineering Loop and no contract lock, formal task split, Agent Team, Builder dispatch, or implementation branch.
-- Engineering Loop binding and Claude `/loop` are independent lifetimes. `/loop` only delivers the Layer 2 Wake-up Prompt; `req bind` supplies engineering authorization, so no separate `/goal` is required.
-- No locked contract, no Builder execution.
-- Native subagents work from an explicit professional responsibility and its original inputs; no generic read-back or activation handshake is required.
-- Implementation requires the accepted document-verification baseline; explicit domain approvals and frozen legacy recovery retain their own conditions.
-- No Delivery Verifier, QA, and E2E Browser evidence, no loop completion.
-- No clean full-depth Delivery + QA + E2E review round, no release audit.
-- An accepted S7 Finding enters S8 investigation directly; an InvestigationCase and an approved repair Contract establish the subsequent S9 repair responsibility.
-- No human release approval, no squash merge to `master/main`.
+宿主说明见 [OpenAI 官方文档](https://developers.openai.com/codex/skills) 与 [Claude Code Skills 文档](https://code.claude.com/docs/en/skills)。

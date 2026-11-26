@@ -1,8 +1,8 @@
 # 跨工具轻量工作流待实施方案
 
-日期：2026-11-26。状态：**首版实施基准 v1，范围已收敛，等待明确批准启动**。
+日期：2026-11-26。状态：**首版实施基准 v1，已批准实施**。
 
-本方案已获准保存、完善，并提交到 `codex/workflow-lightweight` 后推送至用户的 GitHub 仓库。框架改造尚未启动；删除旧框架、修改 Hook/配置/Memory、安装或迁移到业务项目，以及各宿主联合演练仍等待明确的实施授权。本文件不是新的运行规则，不应被自动导入 `AGENTS.md`、`CLAUDE.md` 或 Memory。
+首版实施在 `codex/workflow-lightweight` 进行，范围为本分支源码及隔离试点。现役项目的配置切换和迁移另行安排。本文记录方案和实施依据，供查阅。
 
 首批目标宿主为 **Claude Code 与 Codex**。“Koko”已由用户确认为 Claude Code。Antigravity 保留适配位置，在取得版本、配置和运行证据后再决定实现。
 
@@ -54,7 +54,7 @@
 
 完成源码精简只能称“实现完成”；两个宿主的必需试点通过后，才能称“首版验收完成”。环境不可达时如实报告对应未完成项，不以增加文档替代验证，也不擅自扩大为安装或迁移其他环境。
 
-这次对话仅把执行范围定清楚。此前明确的“等待批准后实施”仍然有效，讨论是否按方案执行不视为已经授权删除源码或切换配置。后续批准首版范围后，可在该范围内连续实施，不必每处理一个文件重新询问；现役业务项目、其他设备与生产环境的迁移不包含在首版源码重建授权中。
+基线方案提交为 `5e8cc5964aa481f08683089bd9ff0fec55bbb132`。首版实施授权覆盖当前分支和隔离试点，现役业务项目、其他设备和生产环境按各自范围安排。
 
 ## 2. 当前基线与证据口径
 
@@ -391,7 +391,7 @@ Claude 官方 Hook 说明见 [Hooks reference](https://code.claude.com/docs/en/h
 
 ## 13. 批准后实施顺序与变更清单
 
-本节均为待批准动作。第一、二批组成第 1.1 节的首版实施范围；后面的条件扩展不属于首版必做项。可以一次批准首版范围，不等于批准迁移所有现役项目或实施所有技术备选。
+第一、二批组成第 1.1 节已批准的首版实施范围。条件扩展按实际需要另议。
 
 ### 第一批：确认选材并产出可审查轻量版
 
@@ -402,6 +402,19 @@ Claude 官方 Hook 说明见 [Hooks reference](https://code.claude.com/docs/en/h
 5. 检查剩余引用和默认注册，确保新版入口没有再调用旧 Loop，也没有自动加载旧分支或归档中的 Skill。
 
 “清空”仅指批准后的受控源码替换。不能执行整目录删除或 `git clean -fdx`。当前目录中确有独立 worktree 和忽略状态；旧仓库源码清理与业务项目运行配置切换是两件事。
+
+#### 源码选取清单
+
+| 处置 | 基线文件或来源 | 新版落点 |
+| --- | --- | --- |
+| 保留 | `LICENSE`、本文 | 原路径 |
+| 替换 | `README.md`、`.gitignore` | 同路径提供用法、旧版恢复入口和准确的忽略边界 |
+| 提取规范 | `AGENTS-template.md`、`docs/DOCUMENT-MAP.md`、需求和原型模板 | 根 `AGENTS.md`、实施计划模板与 README 的目录及交接约定 |
+| 提取方法 | 第 6 节列出的 13 项方法 | `.agents/skills/project-{dev,fix,test,review}/SKILL.md`，各自的 `agents/openai.yaml` 声明显式调用 |
+| 适配 Claude | 项目规则导入与项目 Skill 机制 | `CLAUDE.md` 和 `.claude/skills/project-{dev,fix,test,review}/SKILL.md` |
+| 退出当前源码 | 基线 `5e8cc59` 中除上述 4 个保留或替换路径外的全部跟踪文件，共 2,247 个。含 `cmd/`、`internal/`、`agents/`、旧 `skills/`、`tests/`、`tools/`、`packaging/`、`blueprint/`、旧 `docs/` 与 `.github/workflows/` | 在旧版提交中查阅或恢复，具体文件以 `git diff --name-status 5e8cc59` 为准 |
+
+本地 `.claude` 设置和状态、`.local`、`dist`、旧二进制及其他未跟踪文件留在原处。源码替换以受跟踪路径清单为边界。
 
 ### 第二批：一个修复试点，然后一个跨层功能
 
@@ -424,7 +437,7 @@ Claude 官方 Hook 说明见 [Hooks reference](https://code.claude.com/docs/en/h
 
 ### 具体范围与恢复
 
-| 变更对象 | 待批准动作 | 依赖与恢复 |
+| 变更对象 | 实施范围 | 依赖与恢复 |
 | --- | --- | --- |
 | 当前框架分支的跟踪源码 | 白名单重建、退出旧阶段/Runtime/分发链 | 先保留提取内容与可审查 diff；用旧提交取回单项，已有批准改动用反向提交恢复 |
 | 47 Skills / 8 Agents | 按第 6、7 节筛选，不整包迁移 | 旧分支保留原文，必要时按需重新提取 |
@@ -433,28 +446,27 @@ Claude 官方 Hook 说明见 [Hooks reference](https://code.claude.com/docs/en/h
 | 参考业务项目 | 首批只作为证据和候选试点来源 | 本方案不授权修改或安装；实际试点位置和范围另行确定 |
 | 其他设备、SSH、云端 | 无自动同步或迁移 | 每个环境独立核实网络、依赖与授权 |
 
-## 14. 尚待补充与当前限制
+## 14. 审计时的限制
 
-- 用户仍可补充偏好的原型、设计规范、交付要求和必须保留的旧能力；先维护本方案，不立即重建。
+- 项目专用的原型、设计规范和交付要求继续由该项目维护。
 - 当前未完整核实各宿主受管配置、每类 Memory 的实际自动读写、所有规则发现优先级，以及 IDE/App/CLI/云端之间的差异。
 - 没有在 Windows 原生或目标 macOS 复现用户报错，不能完成原因归属；没有访问远端 CI 运行历史证明当前所有平台通过。
-- 没有启动旧工作流、执行参考测试、编译、安装、迁移或联合演练。历史报告有些原始产物位于 `/tmp`，本轮没有证明这些产物仍可取得。
-- 宿主自身可能记录会话和工具日志，不能宣称整个环境绝对零写入；本轮主动文件变更仅为这份计划。
+- 方案形成时没有启动旧工作流或重跑参考项目。历史报告的部分原始产物位于 `/tmp`，其可取得性未验证。
 
 ## 证据索引
 
 框架证据以 `0bea691fade6bd7dfccbb543dd26dfb14f57d854` 为基线；未来白名单重建后应从旧版分支或该提交查阅，不要求新版为保留链接继续携带旧运行机制。
 
-- **[F1]** [当前忽略规则](../../.gitignore)，第 2、5、51 行分别涉及 `.claude/`、`AGENTS.md`、`.local/`。
-- **[F2]** [需求可观察成功](../requirements/REQ-template.md) 第 29 行；[原型用户动作](../design/prototypes/USER-FLOW-template.md) 第 69 行；[规格规划方法](../../skills/specification-planning/SKILL.md) 第 480 行；[旧测试固定要求](../../skills/testing-strategy/SKILL.md) 第 27 行。
-- **[F3]** [QA 预载](../../agents/qa.md) 第 6 行；[后端角色限制](../../agents/backend-builder.md) 第 47 行；[S6 Builder 选择](../../internal/cli/s6_prepare.go) 第 140 行。
-- **[F4]** [场景产物生成](../../internal/scenario/engine.go) 第 50 行；[语义消费者](../../internal/semantic/contracts.go) 第 92 行；[Hook 日志统计](../../internal/metrics/metrics.go) 第 381 行。
-- **[F5]** [10 类 Hook 注册](../../settings.json)；[Worker 重建注册](../../internal/workspace/bootstrap.go) 第 123 行；[迁移强制检查](../../internal/migration/templates.go) 第 157 行。
-- **[F6]** [失败事件清理 planning stamp](../../internal/cli/planning_tool_change.go) 第 91 行；[旧文档与 Runtime 权威](../DOCUMENT-MAP.md) 第 17 行。
-- **[F7]** [发布控制实际执行](../../internal/policy/engine.go) 第 1437 行；[受保护命令表](../control/protected-commands.json)。
-- **[F8]** [Go 依赖](../../go.mod)；[多平台构建](../../Makefile) 第 35 行；[发布流程](../../.github/workflows/release.yml) 第 33 行；[平台矩阵](../../.github/workflows/runtime-portability.yml)。
-- **[F9]** [发布构建与版本注入](../../packaging/build-release.sh) 第 64 行；[版本识别实现](../../internal/cli/build_info.go) 第 13 行；[CLI 职责入口](../../internal/cli/run.go) 第 114 行。
-- **[F10]** [已有 Windows 失败审计记录](../../CI-AUDIT.md) 第 156 行；[PowerShell 启动器](../../tools/loop-harness-launcher.ps1) 第 3 行；[Shell 检查执行](../../internal/integration/check_runner.go) 第 44 行；[非 Linux 隔离检查边界](../../internal/workspace/check_other.go) 第 11 行。
+- **[F1]** [当前忽略规则](https://github.com/jarodlaw23/go-system-builder/blob/0bea691fade6bd7dfccbb543dd26dfb14f57d854/.gitignore)，第 2、5、51 行分别涉及 `.claude/`、`AGENTS.md`、`.local/`。
+- **[F2]** [需求可观察成功](https://github.com/jarodlaw23/go-system-builder/blob/0bea691fade6bd7dfccbb543dd26dfb14f57d854/docs/requirements/REQ-template.md) 第 29 行；[原型用户动作](https://github.com/jarodlaw23/go-system-builder/blob/0bea691fade6bd7dfccbb543dd26dfb14f57d854/docs/design/prototypes/USER-FLOW-template.md) 第 69 行；[规格规划方法](https://github.com/jarodlaw23/go-system-builder/blob/0bea691fade6bd7dfccbb543dd26dfb14f57d854/skills/specification-planning/SKILL.md) 第 480 行；[旧测试固定要求](https://github.com/jarodlaw23/go-system-builder/blob/0bea691fade6bd7dfccbb543dd26dfb14f57d854/skills/testing-strategy/SKILL.md) 第 27 行。
+- **[F3]** [QA 预载](https://github.com/jarodlaw23/go-system-builder/blob/0bea691fade6bd7dfccbb543dd26dfb14f57d854/agents/qa.md) 第 6 行；[后端角色限制](https://github.com/jarodlaw23/go-system-builder/blob/0bea691fade6bd7dfccbb543dd26dfb14f57d854/agents/backend-builder.md) 第 47 行；[S6 Builder 选择](https://github.com/jarodlaw23/go-system-builder/blob/0bea691fade6bd7dfccbb543dd26dfb14f57d854/internal/cli/s6_prepare.go) 第 140 行。
+- **[F4]** [场景产物生成](https://github.com/jarodlaw23/go-system-builder/blob/0bea691fade6bd7dfccbb543dd26dfb14f57d854/internal/scenario/engine.go) 第 50 行；[语义消费者](https://github.com/jarodlaw23/go-system-builder/blob/0bea691fade6bd7dfccbb543dd26dfb14f57d854/internal/semantic/contracts.go) 第 92 行；[Hook 日志统计](https://github.com/jarodlaw23/go-system-builder/blob/0bea691fade6bd7dfccbb543dd26dfb14f57d854/internal/metrics/metrics.go) 第 381 行。
+- **[F5]** [10 类 Hook 注册](https://github.com/jarodlaw23/go-system-builder/blob/0bea691fade6bd7dfccbb543dd26dfb14f57d854/settings.json)；[Worker 重建注册](https://github.com/jarodlaw23/go-system-builder/blob/0bea691fade6bd7dfccbb543dd26dfb14f57d854/internal/workspace/bootstrap.go) 第 123 行；[迁移强制检查](https://github.com/jarodlaw23/go-system-builder/blob/0bea691fade6bd7dfccbb543dd26dfb14f57d854/internal/migration/templates.go) 第 157 行。
+- **[F6]** [失败事件清理 planning stamp](https://github.com/jarodlaw23/go-system-builder/blob/0bea691fade6bd7dfccbb543dd26dfb14f57d854/internal/cli/planning_tool_change.go) 第 91 行；[旧文档与 Runtime 权威](https://github.com/jarodlaw23/go-system-builder/blob/0bea691fade6bd7dfccbb543dd26dfb14f57d854/docs/DOCUMENT-MAP.md) 第 17 行。
+- **[F7]** [发布控制实际执行](https://github.com/jarodlaw23/go-system-builder/blob/0bea691fade6bd7dfccbb543dd26dfb14f57d854/internal/policy/engine.go) 第 1437 行；[受保护命令表](https://github.com/jarodlaw23/go-system-builder/blob/0bea691fade6bd7dfccbb543dd26dfb14f57d854/docs/control/protected-commands.json)。
+- **[F8]** [Go 依赖](https://github.com/jarodlaw23/go-system-builder/blob/0bea691fade6bd7dfccbb543dd26dfb14f57d854/go.mod)；[多平台构建](https://github.com/jarodlaw23/go-system-builder/blob/0bea691fade6bd7dfccbb543dd26dfb14f57d854/Makefile) 第 35 行；[发布流程](https://github.com/jarodlaw23/go-system-builder/blob/0bea691fade6bd7dfccbb543dd26dfb14f57d854/.github/workflows/release.yml) 第 33 行；[平台矩阵](https://github.com/jarodlaw23/go-system-builder/blob/0bea691fade6bd7dfccbb543dd26dfb14f57d854/.github/workflows/runtime-portability.yml)。
+- **[F9]** [发布构建与版本注入](https://github.com/jarodlaw23/go-system-builder/blob/0bea691fade6bd7dfccbb543dd26dfb14f57d854/packaging/build-release.sh) 第 64 行；[版本识别实现](https://github.com/jarodlaw23/go-system-builder/blob/0bea691fade6bd7dfccbb543dd26dfb14f57d854/internal/cli/build_info.go) 第 13 行；[CLI 职责入口](https://github.com/jarodlaw23/go-system-builder/blob/0bea691fade6bd7dfccbb543dd26dfb14f57d854/internal/cli/run.go) 第 114 行。
+- **[F10]** [已有 Windows 失败审计记录](https://github.com/jarodlaw23/go-system-builder/blob/0bea691fade6bd7dfccbb543dd26dfb14f57d854/CI-AUDIT.md) 第 156 行；[PowerShell 启动器](https://github.com/jarodlaw23/go-system-builder/blob/0bea691fade6bd7dfccbb543dd26dfb14f57d854/tools/loop-harness-launcher.ps1) 第 3 行；[Shell 检查执行](https://github.com/jarodlaw23/go-system-builder/blob/0bea691fade6bd7dfccbb543dd26dfb14f57d854/internal/integration/check_runner.go) 第 44 行；[非 Linux 隔离检查边界](https://github.com/jarodlaw23/go-system-builder/blob/0bea691fade6bd7dfccbb543dd26dfb14f57d854/internal/workspace/check_other.go) 第 11 行。
 - **[H1]** [Claude 包版本](/home/jarod.luo/.nvm/versions/node/v24.19.0/lib/node_modules/@anthropic-ai/claude-code/package.json:3)；[Codex 包版本](/home/jarod.luo/.nvm/versions/node/v24.19.0/lib/node_modules/@openai/codex/package.json:3)。仅静态读取，没有启动程序。
 - **[H2]** [Ralph Loop 插件 Hook 注册](/home/jarod.luo/.claude/plugins/cache/claude-plugins-official/ralph-loop/1.0.1/hooks/hooks.json)。与框架 Hook 区分，不在本次清理授权范围内。
 - **[R1]** [参考统一实施方案](/home/jarod.luo/hkbcs-admin-go/hkbcs-admin-go/docs/plans/2026-11-24-fx-non-hk-ocr-lpf-implementation.md:5)，另见第 7、28、317、337、436 行；[LPF 原型复审](/home/jarod.luo/hkbcs-admin-go/hkbcs-admin-go/docs/plans/2026-11-24-lpf-prototype-reuse-review.md:3)。

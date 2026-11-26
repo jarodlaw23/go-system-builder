@@ -1,8 +1,0 @@
-{
-  "decision": "",
-  "reviewer": "main-driver",
-  "allowed_paths": ["server/service/example", "server/api/example", "web/src/example"],
-  "forbidden_paths": ["server/service/example/destructive_migration.go"],
-  "max_contracts": 3,
-  "expires_at": "REPLACE_WITH_HUMAN_CHOSEN_RFC3339_EXPIRY"
-}
